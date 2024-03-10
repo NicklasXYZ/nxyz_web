@@ -41,4 +41,4 @@ jobs:
         port: 22
         script: |
           cd ~/deploy/${{ github.event.repository.name }}
-          docker compose -f ./docker-compose.yml up -d
+          docker-compose -f ./docker-compose.yml up -d
