@@ -1,0 +1,44 @@
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: 'Edit to nginx-certbot.env file'
+      run: |
+        sed -i~ '/^CERTBOT_EMAIL=/s/=.*/="${{ secrets.CERTBOT_EMAIL }}"/' nginx-certbot.env
+
+    - name: 'Edit to nginx-redicret.env file'
+      run: |
+        sed -i~ '/^SERVER_REDIRECT=/s/=.*/="${{ secrets.SERVER_REDIRECT }}"/' nginx-redirect.env
+        sed -i~ '/^SERVER_REDIRECT_PATH=/s/=.*/="${{ secrets.SERVER_REDIRECT_PATH }}"/' nginx-redirect.env
+
+    # Copy files to remote server
+    - name: Copy .env file to server using SCP
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.SERVER_IP }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 22
+        source: "./*"
+        target: "~/deploy/${{ github.event.repository.name }}/"
+
+    # Deploy Docker image remotely
+    - name: remote docker-compose up via ssh
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SERVER_IP }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 22
+        script: |
+          cd ~/deploy/${{ github.event.repository.name }}
+          docker compose -f ./docker-compose.yml up -d
